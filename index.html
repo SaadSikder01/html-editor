@@ -1,0 +1,1565 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Code Editor Pro — Share & Publish</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c232d; --border:#2a323d;
+    --text:#e6edf3; --muted:#8b949e; --accent:#7c3aed; --green:#22c55e;
+    --t-com:#6a9955; --t-tag:#569cd6; --t-attr:#9cdcfe; --t-str:#ce9178;
+    --t-kw:#c586c0; --t-num:#b5cea8; --t-punct:#d4d4d4; --t-prop:#9cdcfe;
+    --t-sel:#d7ba7d; --t-fn:#dcdcaa; --t-built:#4ec9b0;
+  }
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--text);
+    font-family:'Segoe UI',system-ui,-apple-system,'Noto Sans Bengali',sans-serif;
+    overflow:hidden;}
+  .app{display:flex;flex-direction:column;height:100vh}
+  @supports (height:100dvh){ .app{height:100dvh} }
+
+  header{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+    padding:8px 10px;background:var(--panel);border-bottom:1px solid var(--border);
+    padding-top:calc(8px + env(safe-area-inset-top));}
+  .brand{font-weight:800;font-size:15px;margin-right:auto;display:flex;
+    align-items:center;gap:6px;white-space:nowrap;}
+  .brand i{font-style:normal;color:var(--accent)}
+  .btn{border:1px solid var(--border);background:var(--panel2);color:var(--text);
+    padding:9px 13px;border-radius:9px;font-size:13px;font-weight:700;
+    cursor:pointer;display:inline-flex;align-items:center;gap:6px;
+    transition:transform .12s;white-space:nowrap;font-family:inherit;}
+  .btn:active{transform:scale(.95)}
+  .btn.primary{background:linear-gradient(135deg,#7c3aed,#4f46e5);
+    border-color:transparent;color:#fff;box-shadow:0 4px 14px rgba(124,58,237,.35);}
+  .btn.live{background:#1b222c;color:var(--muted)}
+  .btn.live.on{background:#0f2f1d;border-color:var(--green);color:#7ee2a8}
+  .btn.learn{background:linear-gradient(135deg,#0ea5e9,#06b6d4);
+    border-color:transparent;color:#fff}
+  .btn.share{background:linear-gradient(135deg,#f59e0b,#ef4444);
+    border-color:transparent;color:#fff}
+
+  main{flex:1;display:flex;min-height:0;overflow:hidden}
+  .pane{display:flex;flex-direction:column;min-width:0;min-height:0}
+  .editor-pane{flex:1 1 50%;border-right:1px solid var(--border)}
+  .preview-pane{flex:1 1 50%}
+  .tabbar{display:flex;align-items:center;gap:6px;padding:6px 8px;
+    background:var(--panel);border-bottom:1px solid var(--border);
+    flex:0 0 auto;overflow-x:auto;scrollbar-width:none;}
+  .tabbar::-webkit-scrollbar{display:none}
+  .grow{flex:1}
+  .tab{padding:7px 13px;border-radius:8px;font-size:12.5px;font-weight:700;
+    color:var(--muted);background:transparent;border:none;cursor:pointer;
+    font-family:inherit;flex:0 0 auto;}
+  .tab.active{background:var(--panel2);color:var(--text)}
+  .tab.active[data-lang="html"]{color:#ff9f4a}
+  .tab.active[data-lang="css"]{color:#4ea8ff}
+  .tab.active[data-lang="js"]{color:#ffd93d}
+  .iconbtn{border:1px solid var(--border);background:var(--panel2);color:var(--text);
+    width:34px;height:34px;border-radius:8px;font-size:15px;cursor:pointer;
+    display:grid;place-items:center;flex:0 0 auto;font-family:inherit;}
+  .iconbtn:active{transform:scale(.9)}
+  .plabel{font-size:12.5px;font-weight:700;color:var(--muted);padding-left:6px;white-space:nowrap}
+
+  /* Shared banner */
+  .shared-banner{
+    display:none;align-items:center;gap:8px;
+    padding:8px 12px;background:linear-gradient(90deg,#065f46,#047857);
+    color:#d1fae5;font-size:12.5px;font-weight:700;
+    border-bottom:1px solid #047857;
+  }
+  .shared-banner.show{display:flex}
+  .shared-banner .sp{flex:1}
+  .shared-banner button{
+    background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);
+    color:#fff;padding:5px 10px;border-radius:6px;font-size:11.5px;
+    cursor:pointer;font-family:inherit;font-weight:700;
+  }
+
+  .editor-wrap{flex:1;display:flex;min-height:0;background:var(--bg);overflow:hidden}
+  .gutter{flex:0 0 auto;width:46px;padding:14px 8px 14px 0;text-align:right;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:14px;line-height:1.65;color:#4b5563;background:var(--bg);
+    border-right:1px solid #1f2937;overflow:hidden;white-space:pre;
+    user-select:none;-webkit-user-select:none;}
+  .editor-inner{flex:1;position:relative;min-width:0;overflow:hidden}
+  .hl,#editor{position:absolute;top:0;left:0;width:100%;height:100%;
+    padding:14px;margin:0;border:0;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:14px;line-height:1.65;tab-size:2;white-space:pre;
+    word-break:normal;overflow-wrap:normal;}
+  .hl{z-index:0;pointer-events:none;background:transparent;color:var(--text);overflow:hidden;}
+  #editor{z-index:1;background:transparent;color:transparent;
+    -webkit-text-fill-color:transparent;caret-color:#e6edf3;
+    resize:none;outline:none;overflow:auto;}
+  #editor::selection{background:rgba(124,58,237,.35)}
+  #editor::-webkit-scrollbar{width:8px;height:8px}
+  #editor::-webkit-scrollbar-thumb{background:#2a323d;border-radius:4px}
+  #editor::placeholder{color:#4b5563;-webkit-text-fill-color:#4b5563}
+
+  .t-com{color:var(--t-com);font-style:italic}
+  .t-tag{color:var(--t-tag)}
+  .t-attr{color:var(--t-attr)}
+  .t-str{color:var(--t-str)}
+  .t-kw{color:var(--t-kw)}
+  .t-num{color:var(--t-num)}
+  .t-punct{color:var(--t-punct)}
+  .t-prop{color:var(--t-prop)}
+  .t-sel{color:var(--t-sel)}
+  .t-fn{color:var(--t-fn)}
+  .t-built{color:var(--t-built)}
+
+  .frame-wrap{flex:1;position:relative;background:#fff;min-height:0}
+  iframe{width:100%;height:100%;border:none;display:block;background:#fff}
+
+  /* OUTPUT-ONLY MODE */
+  body.output-only header,
+  body.output-only .editor-pane,
+  body.output-only .preview-pane > .tabbar,
+  body.output-only .shared-banner{display:none !important;}
+  body.output-only main{height:100vh;}
+  body.output-only .preview-pane{flex:1 1 100%;border:none;}
+  body.output-only .app{height:100vh;}
+  #viewFloatBtn{
+    display:none;position:fixed;bottom:16px;right:16px;z-index:1100;
+    background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;
+    border:none;padding:11px 16px;border-radius:30px;
+    font-size:13px;font-weight:700;cursor:pointer;
+    box-shadow:0 6px 20px rgba(124,58,237,.5);font-family:inherit;
+    align-items:center;gap:6px;
+  }
+  body.output-only #viewFloatBtn{display:inline-flex;}
+
+  .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:400;
+    opacity:0;pointer-events:none;transition:opacity .25s;}
+  .backdrop.open{opacity:1;pointer-events:auto}
+  .drawer{position:fixed;top:0;right:0;height:100%;width:min(400px,100%);
+    background:var(--panel);border-left:1px solid var(--border);z-index:500;
+    display:flex;flex-direction:column;transform:translateX(102%);
+    transition:transform .3s cubic-bezier(.4,0,.2,1);
+    padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);}
+  .drawer.open{transform:translateX(0)}
+  .drawer-head{display:flex;align-items:center;justify-content:space-between;
+    padding:14px 16px;border-bottom:1px solid var(--border);font-size:15px;
+    font-weight:800;flex:0 0 auto;}
+  .drawer-head .close{border:none;background:var(--panel2);color:var(--text);
+    width:34px;height:34px;border-radius:8px;font-size:15px;cursor:pointer;
+    display:grid;place-items:center;font-family:inherit;}
+  .drawer-body{flex:1;overflow-y:auto;padding:14px 16px}
+  .upload-zone{border:2px dashed var(--border);border-radius:12px;
+    padding:22px 14px;text-align:center;background:var(--panel2);
+    cursor:pointer;margin-bottom:14px;}
+  .upload-zone:active{transform:scale(.98)}
+  .upload-zone .big{font-size:26px;margin-bottom:6px;display:block}
+  .upload-zone .ttl{font-size:13.5px;font-weight:700;margin-bottom:3px}
+  .upload-zone .sub{font-size:11.5px;color:var(--muted)}
+  .hint{background:#0f172a;border:1px solid #1e293b;border-radius:10px;
+    padding:11px 13px;font-size:12px;line-height:1.6;color:#94a3b8;margin-bottom:14px;}
+  .hint code{background:#1e293b;padding:2px 6px;border-radius:5px;color:#fbbf24;
+    font-family:ui-monospace,monospace;font-size:11.5px;}
+  .hint b{color:#e2e8f0}
+  .section-title{font-size:11px;font-weight:800;letter-spacing:.7px;color:var(--muted);
+    text-transform:uppercase;margin:6px 2px 8px;}
+  .asset-list{display:flex;flex-direction:column;gap:8px}
+  .asset-item{display:flex;align-items:center;gap:10px;background:var(--panel2);
+    border:1px solid var(--border);border-radius:10px;padding:9px 10px;}
+  .asset-thumb{width:44px;height:44px;border-radius:8px;flex:0 0 auto;
+    background:#0b0f14;display:grid;place-items:center;font-size:20px;overflow:hidden;}
+  .asset-thumb img{width:100%;height:100%;object-fit:cover}
+  .asset-info{flex:1;min-width:0}
+  .asset-name{font-size:12.5px;font-weight:700;word-break:break-all;
+    font-family:ui-monospace,monospace;color:#e2e8f0;}
+  .asset-meta{font-size:10.5px;color:var(--muted);margin-top:2px}
+  .asset-actions{display:flex;gap:5px;flex:0 0 auto}
+  .asset-actions button{border:1px solid var(--border);background:var(--panel);
+    color:var(--text);width:30px;height:30px;border-radius:7px;font-size:13px;
+    cursor:pointer;display:grid;place-items:center;font-family:inherit;}
+  .asset-actions .use{background:#1e3a2a;border-color:#166534;color:#86efac}
+  .empty{text-align:center;padding:30px 10px;color:var(--muted);font-size:13px;line-height:1.7;}
+  .empty .ico{font-size:32px;display:block;margin-bottom:8px;opacity:.5}
+
+  .tags-modal{position:fixed;inset:0;z-index:800;background:rgba(0,0,0,.7);
+    opacity:0;pointer-events:none;transition:opacity .25s;
+    display:flex;align-items:stretch;justify-content:center;}
+  .tags-modal.open{opacity:1;pointer-events:auto}
+  .tags-panel{width:min(900px,100%);background:var(--panel);display:flex;
+    flex-direction:column;transform:scale(.96);transition:transform .25s;
+    margin:auto;max-height:100%;}
+  .tags-modal.open .tags-panel{transform:scale(1)}
+  .tags-head{display:flex;align-items:center;gap:10px;padding:12px 14px;
+    border-bottom:1px solid var(--border);
+    padding-top:calc(12px + env(safe-area-inset-top));flex:0 0 auto;}
+  .tags-head input{flex:1;background:var(--panel2);border:1px solid var(--border);
+    color:var(--text);padding:11px 14px;border-radius:10px;font-size:14px;
+    outline:none;font-family:inherit;}
+  .tags-head input:focus{border-color:var(--accent)}
+  .tags-head .close{border:1px solid var(--border);background:var(--panel2);
+    color:var(--text);width:42px;height:42px;border-radius:10px;font-size:16px;
+    cursor:pointer;display:grid;place-items:center;font-family:inherit;flex:0 0 auto;}
+  .tags-body{flex:1;overflow-y:auto;padding:14px;
+    padding-bottom:calc(14px + env(safe-area-inset-bottom));}
+  .cat{margin-bottom:22px}
+  .cat-title{font-size:12px;font-weight:800;letter-spacing:1px;color:#7c3aed;
+    text-transform:uppercase;margin:4px 0 10px;display:flex;align-items:center;gap:8px;}
+  .cat-title::after{content:'';flex:1;height:1px;background:var(--border);}
+  .tag-grid{display:grid;gap:10px;grid-template-columns:1fr}
+  @media (min-width:640px){ .tag-grid{grid-template-columns:1fr 1fr} }
+  .tag-card{background:var(--panel2);border:1px solid var(--border);
+    border-radius:12px;padding:12px 13px;}
+  .tag-head{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+  .tag-name{font-family:ui-monospace,monospace;font-size:14px;font-weight:800;
+    color:var(--t-tag);}
+  .tag-desc{font-size:12px;color:var(--muted);margin-bottom:9px}
+  .tag-ex{background:#0a0e14;border:1px solid #1a2028;border-radius:8px;
+    padding:9px 11px;font-family:ui-monospace,monospace;font-size:12px;
+    color:#d4d4d4;line-height:1.5;overflow-x:auto;white-space:pre;margin:0 0 8px;}
+  .tag-insert{border:1px solid #166534;background:#1e3a2a;color:#86efac;
+    padding:6px 12px;border-radius:8px;font-size:12px;font-weight:700;
+    cursor:pointer;font-family:inherit;}
+
+  .share-modal{position:fixed;inset:0;z-index:850;background:rgba(0,0,0,.75);
+    opacity:0;pointer-events:none;transition:opacity .25s;
+    display:flex;align-items:flex-start;justify-content:center;
+    overflow-y:auto;padding:20px;}
+  .share-modal.open{opacity:1;pointer-events:auto}
+  .share-panel{width:min(560px,100%);background:var(--panel);
+    border:1px solid var(--border);border-radius:16px;
+    transform:scale(.96);transition:transform .25s;
+    margin:auto;max-height:calc(100vh - 40px);display:flex;flex-direction:column;}
+  .share-modal.open .share-panel{transform:scale(1)}
+  .share-head{display:flex;align-items:center;justify-content:space-between;
+    padding:14px 16px;border-bottom:1px solid var(--border);
+    font-size:15px;font-weight:800;flex:0 0 auto;}
+  .share-head .close{border:none;background:var(--panel2);color:var(--text);
+    width:34px;height:34px;border-radius:8px;font-size:15px;cursor:pointer;
+    display:grid;place-items:center;font-family:inherit;}
+  .share-body{flex:1;overflow-y:auto;padding:14px 16px;
+    padding-bottom:calc(14px + env(safe-area-inset-bottom));}
+  .share-card{display:flex;gap:12px;align-items:center;
+    background:var(--panel2);border:1px solid var(--border);
+    border-radius:12px;padding:13px;margin-bottom:10px;}
+  .share-ico{font-size:26px;flex:0 0 auto;width:44px;height:44px;
+    display:grid;place-items:center;background:#0b0f14;border-radius:10px;}
+  .share-info{flex:1;min-width:0}
+  .share-ttl{font-size:14px;font-weight:800;margin-bottom:3px}
+  .share-desc{font-size:11.5px;color:var(--muted);line-height:1.5}
+  .share-actions{display:flex;flex-direction:column;gap:6px;flex:0 0 auto}
+  .share-actions .btn{padding:8px 12px;font-size:12px;justify-content:center}
+  .share-hint{background:#1a1208;border:1px solid #422006;border-radius:10px;
+    padding:12px 13px;font-size:11.5px;line-height:1.65;color:#fbbf24;
+    margin-top:6px;}
+  .share-hint code{background:#422006;padding:2px 5px;border-radius:4px;
+    color:#fcd34d;font-family:ui-monospace,monospace;font-size:11px;}
+  .share-hint b{color:#fde68a}
+  .url-box{background:#0a0e14;border:1px solid #1a2028;border-radius:10px;
+    padding:9px 12px;font-size:11px;color:#94a3b8;line-height:1.5;
+    word-break:break-all;font-family:ui-monospace,monospace;
+    max-height:80px;overflow-y:auto;margin-top:8px;}
+  .copy-feedback{color:#86efac;font-weight:700;font-size:12px;
+    display:none;margin-left:6px;}
+  .copy-feedback.show{display:inline}
+
+  .overlay{position:fixed;inset:0;background:#000;z-index:999;display:flex;
+    flex-direction:column;transform:translateY(101%);
+    transition:transform .3s cubic-bezier(.4,0,.2,1);}
+  .overlay.open{transform:translateY(0)}
+  .overlay header{background:#11151c;border-bottom:1px solid #222a35;justify-content:space-between;}
+  .overlay-title{font-size:13px;font-weight:700;color:#9fb0c7}
+
+  #toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,80px);
+    background:#1f2937;color:#fff;padding:11px 18px;border-radius:10px;
+    font-size:13px;font-weight:600;z-index:1200;opacity:0;transition:.3s;
+    pointer-events:none;border:1px solid #374151;max-width:90vw;text-align:center;}
+  #toast.show{opacity:1;transform:translate(-50%,0)}
+
+  @media (max-width:820px){
+    main{flex-direction:column}
+    .editor-pane{flex:0 0 46%;border-right:none;border-bottom:1px solid var(--border)}
+    .preview-pane{flex:1 1 auto}
+    .hl,#editor,.gutter{font-size:15px}
+    .gutter{width:38px;padding-right:6px}
+    .brand{font-size:14px}
+    .btn{padding:8px 11px;font-size:12.5px}
+    .drawer{top:auto;bottom:0;right:0;left:0;width:100%;height:85%;
+      border-left:none;border-top:1px solid var(--border);
+      border-radius:18px 18px 0 0;transform:translateY(102%);}
+    .drawer.open{transform:translateY(0)}
+    .drawer-head{border-radius:18px 18px 0 0;padding-top:18px;position:relative}
+    .drawer-head::before{content:'';position:absolute;top:8px;left:50%;
+      transform:translateX(-50%);width:38px;height:4px;border-radius:2px;background:#374151;}
+    .tags-panel{width:100%;height:100%;max-height:100%;border-radius:0}
+    .share-card{flex-direction:column;align-items:stretch}
+    .share-ico{align-self:flex-start}
+    .share-actions{flex-direction:row}
+    .share-actions .btn{flex:1}
+  }
+  @media (max-width:400px){ .brand span.txt{display:none} }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <div class="brand"><i>⚡</i><span class="txt">কোড এডিটর</span></div>
+    <button class="btn learn" id="learnBtn">📚 শেখো</button>
+    <button class="btn share" id="shareBtn">📤 শেয়ার</button>
+    <button class="btn live on" id="liveBtn">● Live: ON</button>
+    <button class="btn" id="assetBtn">📁 Assets</button>
+    <button class="btn primary" id="runBtn">▶ Run</button>
+  </header>
+
+  <!-- Shared code loaded banner -->
+  <div class="shared-banner" id="sharedBanner">
+    <span>🔗</span>
+    <span class="sp">শেয়ার করা কোড লোড হয়েছে — Preview দেখো!</span>
+    <button id="makeOwnBtn">নিজের বানাও</button>
+  </div>
+
+  <main>
+    <section class="pane editor-pane">
+      <div class="tabbar">
+        <button class="tab active" data-lang="html">HTML</button>
+        <button class="tab" data-lang="css">CSS</button>
+        <button class="tab" data-lang="js">JS</button>
+        <div class="grow"></div>
+      </div>
+      <div class="editor-wrap">
+        <div class="gutter" id="gutter">1</div>
+        <div class="editor-inner">
+          <pre class="hl" id="hl"></pre>
+          <textarea id="editor" spellcheck="false" wrap="off"
+            autocapitalize="off" autocorrect="off" autocomplete="off"
+            placeholder="এখানে কোড লিখো..."></textarea>
+        </div>
+      </div>
+    </section>
+
+    <section class="pane preview-pane">
+      <div class="tabbar">
+        <span class="plabel">🖥️ Output</span>
+        <div class="grow"></div>
+        <button class="iconbtn" id="fsBtn" title="ফুলস্ক্রিন">⛶</button>
+      </div>
+      <div class="frame-wrap">
+        <iframe id="preview" title="preview"
+          sandbox="allow-scripts allow-modals allow-forms allow-popups allow-same-origin allow-popups-to-escape-sandbox"></iframe>
+      </div>
+    </section>
+  </main>
+</div>
+
+<button id="viewFloatBtn">✏️ Edit করুন</button>
+
+<div class="backdrop" id="backdrop"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-head">
+    <span>📁 Assets</span>
+    <button class="close" id="closeDrawer">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="hint">
+      <b>💡 কীভাবে ব্যবহার করবে:</b><br>
+      এখানে <code>photo.jpg</code> বা <code>video.mp4</code> নামে ফাইল আপলোড করো। তারপর কোডে সাধারণভাবে লেখো:<br>
+      <code>&lt;img src="photo.jpg"&gt;</code><br>
+      <code>&lt;video src="video.mp4" controls&gt;&lt;/video&gt;</code>
+    </div>
+    <div class="upload-zone" id="uploadZone">
+      <span class="big">📤</span>
+      <div class="ttl">ছবি / ভিডিও আপলোড করো</div>
+      <div class="sub">একসাথে একাধিক ফাইল দিতে পারো</div>
+    </div>
+    <input type="file" id="fileInput" accept="image/*,video/*" multiple hidden>
+    <div class="section-title" id="listTitle" style="display:none">আপলোড করা ফাইল</div>
+    <div class="asset-list" id="assetList"></div>
+    <div class="empty" id="emptyState">
+      <span class="ico">📂</span>
+      এখনো কোনো ফাইল নেই
+    </div>
+  </div>
+</div>
+
+<div class="tags-modal" id="tagsModal">
+  <div class="tags-panel">
+    <div class="tags-head">
+      <input type="text" id="tagSearch" placeholder="🔍 ট্যাগ খোঁজো... (div, img, video)">
+      <button class="close" id="closeTagsBtn">✕</button>
+    </div>
+    <div class="tags-body" id="tagsBody"></div>
+  </div>
+</div>
+
+<div class="share-modal" id="shareModal">
+  <div class="share-panel">
+    <div class="share-head">
+      <span>📤 শেয়ার ও এক্সপোর্ট</span>
+      <button class="close" id="closeShareBtn">✕</button>
+    </div>
+    <div class="share-body">
+      <div class="share-card">
+        <div class="share-ico">🔗</div>
+        <div class="share-info">
+          <div class="share-ttl">Editor Link</div>
+          <div class="share-desc">প্রাপক এডিটর সহ তোমার কোড দেখবে</div>
+        </div>
+        <div class="share-actions">
+          <button class="btn" id="copyEditBtn">📋 কপি<span class="copy-feedback" id="editCopied">✓</span></button>
+          <button class="btn primary" id="openEditBtn">↗ খোলো</button>
+        </div>
+      </div>
+
+      <div class="share-card">
+        <div class="share-ico">🌐</div>
+        <div class="share-info">
+          <div class="share-ttl">Website Link</div>
+          <div class="share-desc">শুধু আউটপুট — আসল ওয়েবসাইটের মতো</div>
+        </div>
+        <div class="share-actions">
+          <button class="btn" id="copyViewBtn">📋 কপি<span class="copy-feedback" id="viewCopied">✓</span></button>
+          <button class="btn primary" id="openViewBtn">↗ খোলো</button>
+        </div>
+      </div>
+
+      <div class="share-card">
+        <div class="share-ico">💾</div>
+        <div class="share-info">
+          <div class="share-ttl">Download .html</div>
+          <div class="share-desc">স্ট্যান্ডঅ্যালোন ফাইল — অফলাইনেও চলবে</div>
+        </div>
+        <div class="share-actions">
+          <button class="btn primary" id="downloadBtn">⬇ ডাউনলোড</button>
+        </div>
+      </div>
+
+      <div style="font-size:11px;font-weight:800;letter-spacing:.7px;
+        color:var(--muted);text-transform:uppercase;margin:14px 2px 6px;">
+        🔍 প্রিভিউ
+      </div>
+      <div class="url-box" id="urlPreview">লিংক জেনারেট হচ্ছে...</div>
+
+      <div class="share-hint">
+        💡 <b>গুরুত্বপূর্ণ:</b> শেয়ার লিংক কাজ করবে শুধু হোস্টিং-এ (GitHub Pages, Netlify, Vercel) আপলোড করা অবস্থায়। <b>লোকাল file:// থেকে শেয়ার অন্য কারো কাছে কাজ করবে না</b> — সেক্ষেত্রে Download ব্যবহার করো।
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <header>
+    <span class="overlay-title">▶ Output — Fullscreen</span>
+    <div style="display:flex;gap:8px">
+      <button class="btn" id="reRunBtn">🔄 আবার চালাও</button>
+      <button class="btn" id="closeFsBtn">✕ বন্ধ</button>
+    </div>
+  </header>
+  <div class="frame-wrap">
+    <iframe id="fsFrame" title="fullscreen output"
+      sandbox="allow-scripts allow-modals allow-forms allow-popups allow-same-origin allow-popups-to-escape-sandbox"></iframe>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(function(){
+'use strict';
+
+var $ = function(id){ return document.getElementById(id); };
+
+var editor    = $('editor');
+var hl        = $('hl');
+var gutter    = $('gutter');
+var preview   = $('preview');
+var fsFrame   = $('fsFrame');
+var overlay   = $('overlay');
+var liveBtn   = $('liveBtn');
+var toastEl   = $('toast');
+var drawer    = $('drawer');
+var backdrop  = $('backdrop');
+var assetList = $('assetList');
+var emptyState= $('emptyState');
+var listTitle = $('listTitle');
+var sharedBanner = $('sharedBanner');
+
+/* ===== ESCAPE ===== */
+function esc(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ===== PLACEHOLDER SYSTEM ===== */
+function PH(){
+  var tokens = [];
+  return {
+    store: function(html){
+      var i = tokens.length;
+      tokens.push(html);
+      return '\uE000' + String.fromCharCode(0xE100 + i) + '\uE001';
+    },
+    restore: function(s){
+      return s.replace(/\uE000([\uE100-\uE8FF])\uE001/g, function(m, c){
+        var idx = c.charCodeAt(0) - 0xE100;
+        return tokens[idx] !== undefined ? tokens[idx] : '';
+      });
+    }
+  };
+}
+
+function highlightAttrs(attrs){
+  return attrs.replace(
+    /([a-zA-Z_:][\w:.-]*)(\s*=\s*)("[^"]*"|'[^']*')?/g,
+    function(m, an, eq, av){
+      return '<span class="t-attr">' + an + '</span>' +
+             '<span class="t-punct">' + eq + '</span>' +
+             (av ? '<span class="t-str">' + av + '</span>' : '');
+    }
+  );
+}
+
+function hlHTML(code){
+  var P = PH(); var s = esc(code);
+  s = s.replace(/&lt;!--[\s\S]*?--&gt;/g, function(m){
+    return P.store('<span class="t-com">' + m + '</span>');
+  });
+  s = s.replace(/&lt;![^&]*?&gt;/g, function(m){
+    return P.store('<span class="t-tag">' + m + '</span>');
+  });
+  s = s.replace(
+    /&lt;(\/?)([a-zA-Z][\w-]*)((?:"[^"]*"|'[^']*'|[^&])*?)(\/?)(&gt;)/g,
+    function(m, slash, tag, attrs, selfClose, end){
+      var out = '<span class="t-punct">&lt;' + slash + '</span>' +
+                '<span class="t-tag">' + tag + '</span>' +
+                highlightAttrs(attrs) +
+                '<span class="t-punct">' + selfClose + end + '</span>';
+      return P.store(out);
+    }
+  );
+  return P.restore(s);
+}
+
+function hlCSS(code){
+  var P = PH(); var s = esc(code);
+  s = s.replace(/\/\*[\s\S]*?\*\//g, function(m){
+    return P.store('<span class="t-com">' + m + '</span>');
+  });
+  s = s.replace(/"[^"\n]*"|'[^'\n]*'/g, function(m){
+    return P.store('<span class="t-str">' + m + '</span>');
+  });
+  s = s.replace(/#[0-9a-fA-F]{3,8}\b/g, function(m){
+    return P.store('<span class="t-num">' + m + '</span>');
+  });
+  s = s.replace(
+    /\b(\d+(?:\.\d+)?)(px|em|rem|%|vh|vw|vmin|vmax|s|ms|deg|pt|fr|ch|ex)?\b/g,
+    function(m, n, u){
+      return P.store('<span class="t-num">' + n + '</span>' +
+                     (u ? '<span class="t-num">' + u + '</span>' : ''));
+    }
+  );
+  s = s.replace(/([a-zA-Z-]+)(\s*:)/g, function(m, p, c){
+    return P.store('<span class="t-prop">' + p + '</span>' +
+                   '<span class="t-punct">' + c + '</span>');
+  });
+  s = s.replace(/(::?[a-zA-Z-]+)/g, function(m){
+    return P.store('<span class="t-sel">' + m + '</span>');
+  });
+  s = s.replace(/(\.[a-zA-Z_][\w-]*)/g, function(m){
+    return P.store('<span class="t-sel">' + m + '</span>');
+  });
+  s = s.replace(/(#[a-zA-Z_][\w-]*)/g, function(m){
+    return P.store('<span class="t-sel">' + m + '</span>');
+  });
+  s = s.replace(/([{};])/g, function(m){
+    return P.store('<span class="t-punct">' + m + '</span>');
+  });
+  return P.restore(s);
+}
+
+function hlJS(code){
+  var P = PH(); var s = esc(code);
+  s = s.replace(/\/\*[\s\S]*?\*\//g, function(m){
+    return P.store('<span class="t-com">' + m + '</span>');
+  });
+  s = s.replace(/\/\/[^\n]*/g, function(m){
+    return P.store('<span class="t-com">' + m + '</span>');
+  });
+  s = s.replace(/`[^`]*`|"[^"\n]*"|'[^'\n]*'/g, function(m){
+    return P.store('<span class="t-str">' + m + '</span>');
+  });
+  var kw = ['var','let','const','function','return','if','else','for','while','do',
+            'class','new','this','super','extends','import','export','from','as',
+            'default','try','catch','finally','throw','typeof','instanceof','in',
+            'of','switch','case','break','continue','delete','void','yield',
+            'async','await','null','undefined','true','false','static','get','set'];
+  s = s.replace(new RegExp('\\b(' + kw.join('|') + ')\\b','g'), function(m){
+    return P.store('<span class="t-kw">' + m + '</span>');
+  });
+  var bi = ['console','document','window','Math','JSON','Object','Array','String',
+            'Number','Boolean','Promise','Date','RegExp','Map','Set','alert',
+            'setTimeout','setInterval','clearTimeout','clearInterval','fetch',
+            'localStorage','sessionStorage'];
+  s = s.replace(new RegExp('\\b(' + bi.join('|') + ')\\b','g'), function(m){
+    return P.store('<span class="t-built">' + m + '</span>');
+  });
+  s = s.replace(/\b(\d+(?:\.\d+)?)\b/g, function(m){
+    return P.store('<span class="t-num">' + m + '</span>');
+  });
+  s = s.replace(/([a-zA-Z_$][\w$]*)(\s*\()/g, function(m, fn, p){
+    return P.store('<span class="t-fn">' + fn + '</span>' +
+                   '<span class="t-punct">' + p + '</span>');
+  });
+  s = s.replace(/([=+\-*\/<>!&|(){}\[\];,.:?]+)/g, function(m){
+    return P.store('<span class="t-punct">' + m + '</span>');
+  });
+  return P.restore(s);
+}
+
+/* ===== STATE ===== */
+var buffers = {
+  html:
+'<div class="card">\n' +
+'  <h1>হ্যালো ওয়ার্ল্ড! 👋</h1>\n' +
+'  <p>📁 Assets থেকে ছবি/ভিডিও আপলোড করে ব্যবহার করো।</p>\n' +
+'  <button onclick="alert(\'হাই! 🎉\')">আমাকে ক্লিক করো</button>\n' +
+'</div>\n',
+  css:
+'body{\n' +
+'  margin: 0;\n' +
+'  min-height: 100vh;\n' +
+'  display: flex;\n' +
+'  align-items: center;\n' +
+'  justify-content: center;\n' +
+'  font-family: "Segoe UI", sans-serif;\n' +
+'  padding: 20px;\n' +
+'  box-sizing: border-box;\n' +
+'  background: linear-gradient(135deg, #4f46e5, #9333ea);\n' +
+'}\n' +
+'.card{\n' +
+'  background: #fff;\n' +
+'  color: #1f2937;\n' +
+'  text-align: center;\n' +
+'  padding: 28px 22px;\n' +
+'  border-radius: 16px;\n' +
+'  box-shadow: 0 12px 40px rgba(0,0,0,0.25);\n' +
+'  max-width: 420px;\n' +
+'  width: 100%;\n' +
+'}\n' +
+'button{\n' +
+'  margin-top: 14px;\n' +
+'  padding: 12px 24px;\n' +
+'  border: none;\n' +
+'  border-radius: 10px;\n' +
+'  background: #4f46e5;\n' +
+'  color: #fff;\n' +
+'  font-weight: 700;\n' +
+'  font-size: 15px;\n' +
+'  cursor: pointer;\n' +
+'}\n',
+  js:
+'console.log("Live preview চালু হয়েছে ✅");\n'
+};
+
+var current = 'html';
+var live = true;
+var assets = {};
+var sharedMode = false;
+
+editor.value = buffers.html;
+
+/* ===== LOADING SPINNER ===== */
+function showLoading(){
+  try {
+    preview.srcdoc =
+      '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>' +
+      'body{margin:0;height:100vh;display:flex;align-items:center;' +
+      'justify-content:center;font-family:sans-serif;background:#0d1117;color:#e6edf3}' +
+      '.sp{text-align:center}' +
+      '.dot{width:14px;height:14px;background:#7c3aed;border-radius:50%;' +
+      'display:inline-block;margin:0 4px;animation:b 1.4s infinite ease-in-out both}' +
+      '.dot:nth-child(1){animation-delay:-0.32s}' +
+      '.dot:nth-child(2){animation-delay:-0.16s}' +
+      '@keyframes b{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}' +
+      '</style></head><body><div class="sp"><div style="margin-bottom:14px">' +
+      '<span class="dot"></span><span class="dot"></span><span class="dot"></span>' +
+      '</div><div style="font-size:14px;opacity:.8">শেয়ার করা কোড লোড হচ্ছে...</div>' +
+      '</div></body></html>';
+  } catch(e){}
+}
+
+function showError(msg){
+  try {
+    preview.srcdoc =
+      '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>' +
+      'body{margin:0;height:100vh;display:flex;align-items:center;' +
+      'justify-content:center;font-family:sans-serif;background:#0d1117;color:#e6edf3}' +
+      '.box{text-align:center;padding:24px}' +
+      '.ico{font-size:42px;margin-bottom:12px}' +
+      'h3{color:#ef4444;margin:0 0 8px}' +
+      'p{color:#8b949e;font-size:13px;line-height:1.6;margin:0}' +
+      '</style></head><body><div class="box"><div class="ico">⚠️</div>' +
+      '<h3>লোড করা যায়নি</h3><p>' + esc(msg || 'লিংকটি সম্পূর্ণ কপি হয়েছে কি না দেখো') +
+      '</p></div></body></html>';
+  } catch(e){}
+}
+
+/* ===== ASSET HELPERS ===== */
+function formatSize(bytes){
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/(1024*1024)).toFixed(1) + ' MB';
+}
+
+function addAsset(file){
+  var name = file.name;
+  var m = name.match(/^(.*?)(\.[^.]+)?$/);
+  var base = m ? m[1] : name;
+  var ext  = (m && m[2]) ? m[2] : '';
+  var finalName = name, n = 1;
+  while (assets[finalName]) { finalName = base + '-' + (n++) + ext; }
+  var url  = URL.createObjectURL(file);
+  var kind = file.type.indexOf('image/') === 0 ? 'image'
+           : file.type.indexOf('video/') === 0 ? 'video' : 'other';
+  assets[finalName] = { url:url, kind:kind, size:file.size, type:file.type };
+  return finalName;
+}
+
+function removeAsset(name){
+  if (!assets[name]) return;
+  try { URL.revokeObjectURL(assets[name].url); } catch(e){}
+  delete assets[name];
+}
+
+function rewritePaths(text){
+  if (!text) return '';
+  text = text.replace(/\b(src|href|poster)\s*=\s*(["'])([^"']*)\2/gi,
+    function(m, attr, q, val){
+      var clean = val.replace(/^\.?\//, '');
+      if (assets[clean]) return attr + '=' + q + assets[clean].url + q;
+      return m;
+    });
+  text = text.replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/gi,
+    function(m, q, val){
+      var clean = val.replace(/^\.?\//, '');
+      if (assets[clean]) return 'url(' + q + assets[clean].url + q + ')';
+      return m;
+    });
+  return text;
+}
+
+/* ===== BUILD DOC ===== */
+function buildDocFrom(html, css, js){
+  var closeScript = '<' + '/script>';
+  return '<!DOCTYPE html>\n<html lang="bn">\n<head>\n' +
+    '<meta charset="UTF-8">\n' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n' +
+    '<title>আমার ওয়েবসাইট</title>\n' +
+    '<style>\n' + (css || '') + '\n</style>\n' +
+    '</head>\n<body>\n' +
+    (html || '') + '\n' +
+    '<script>\n' + (js || '') + '\n' + closeScript + '\n' +
+    '</body>\n</html>';
+}
+
+function buildDoc(){
+  return buildDocFrom(
+    rewritePaths(buffers.html || ''),
+    rewritePaths(buffers.css || ''),
+    rewritePaths(buffers.js || '')
+  );
+}
+
+/* ===== FORCE PREVIEW RELOAD ===== */
+function updatePreview(){
+  try {
+    /* Force reload by clearing first */
+    preview.srcdoc = '';
+    /* Small delay to ensure iframe reloads */
+    setTimeout(function(){
+      try { preview.srcdoc = buildDoc(); }
+      catch(e){ console.error('Preview error:', e); }
+    }, 10);
+  } catch(e){
+    console.error('Preview error:', e);
+    try { preview.srcdoc = buildDoc(); } catch(e2){}
+  }
+}
+
+var previewTimer = null;
+function schedulePreview(){
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(updatePreview, 350);
+}
+
+/* ===== HIGHLIGHT ===== */
+function updateHighlight(){
+  try {
+    var code = editor.value;
+    var html;
+    if (current === 'html')      html = hlHTML(code);
+    else if (current === 'css')  html = hlCSS(code);
+    else                          html = hlJS(code);
+    hl.innerHTML = html + '\n';
+  } catch(e){
+    console.error('Highlight error:', e);
+    hl.textContent = editor.value + '\n';
+  }
+  updateGutter();
+  syncScroll();
+}
+
+function updateGutter(){
+  var lines = (editor.value.match(/\n/g) || []).length + 1;
+  var out = '';
+  for (var i = 1; i <= lines; i++){
+    out += i;
+    if (i < lines) out += '\n';
+  }
+  gutter.textContent = out;
+}
+
+function syncScroll(){
+  hl.scrollTop = editor.scrollTop;
+  hl.scrollLeft = editor.scrollLeft;
+  gutter.scrollTop = editor.scrollTop;
+}
+
+var hlTimer = null;
+function scheduleHighlight(){
+  clearTimeout(hlTimer);
+  hlTimer = setTimeout(updateHighlight, 50);
+}
+
+function insertAtCursor(text){
+  var s = editor.selectionStart;
+  var en = editor.selectionEnd;
+  if (s == null) { s = en = editor.value.length; }
+  editor.value = editor.value.slice(0, s) + text + editor.value.slice(en);
+  var pos = s + text.length;
+  try { editor.selectionStart = editor.selectionEnd = pos; } catch(e){}
+  buffers[current] = editor.value;
+  updateHighlight();
+  if (live) updatePreview();
+}
+
+/* ===== ASSET UI ===== */
+function renderAssets(){
+  var names = Object.keys(assets);
+  assetList.innerHTML = '';
+  if (names.length === 0){
+    emptyState.style.display = 'block';
+    listTitle.style.display = 'none';
+    return;
+  }
+  emptyState.style.display = 'none';
+  listTitle.style.display = 'block';
+
+  names.forEach(function(name){
+    var a = assets[name];
+    var row = document.createElement('div');
+    row.className = 'asset-item';
+
+    var thumb = document.createElement('div');
+    thumb.className = 'asset-thumb';
+    if (a.kind === 'image'){
+      var im = document.createElement('img');
+      im.src = a.url; im.alt = name;
+      thumb.appendChild(im);
+    } else if (a.kind === 'video'){ thumb.textContent = '🎬'; }
+    else { thumb.textContent = '📄'; }
+
+    var info = document.createElement('div');
+    info.className = 'asset-info';
+    var nm = document.createElement('div');
+    nm.className = 'asset-name';
+    nm.textContent = name;
+    var mt = document.createElement('div');
+    mt.className = 'asset-meta';
+    mt.textContent = (a.kind === 'image' ? '🖼️ Image' :
+                      a.kind === 'video' ? '🎬 Video' : '📄 File') +
+                     ' · ' + formatSize(a.size);
+    info.appendChild(nm);
+    info.appendChild(mt);
+
+    var acts = document.createElement('div');
+    acts.className = 'asset-actions';
+
+    var useBtn = document.createElement('button');
+    useBtn.className = 'use';
+    useBtn.textContent = '＋';
+    useBtn.onclick = function(){ insertAssetTag(name, a.kind); };
+
+    var copyBtn = document.createElement('button');
+    copyBtn.textContent = '📋';
+    copyBtn.onclick = function(){
+      if (navigator.clipboard){
+        navigator.clipboard.writeText(name).then(function(){
+          toast('📋 কপি হয়েছে: ' + name);
+        }).catch(function(){ toast('নাম: ' + name); });
+      } else { toast('নাম: ' + name); }
+    };
+
+    var delBtn = document.createElement('button');
+    delBtn.textContent = '🗑';
+    delBtn.onclick = function(){
+      if (confirm('"' + name + '" মুছে ফেলতে চাও?')){
+        removeAsset(name);
+        renderAssets();
+        updatePreview();
+        toast('মুছে ফেলা হয়েছে');
+      }
+    };
+
+    acts.appendChild(useBtn);
+    acts.appendChild(copyBtn);
+    acts.appendChild(delBtn);
+    row.appendChild(thumb);
+    row.appendChild(info);
+    row.appendChild(acts);
+    assetList.appendChild(row);
+  });
+}
+
+function insertAssetTag(name, kind){
+  if (current !== 'html') switchTab('html');
+  var tag;
+  if (kind === 'image'){
+    tag = '\n<img src="' + name + '" alt="' + name + '">\n';
+  } else if (kind === 'video'){
+    tag = '\n<video src="' + name + '" controls playsinline style="max-width:100%"></video>\n';
+  } else { tag = name; }
+  insertAtCursor(tag);
+  toast('✅ কোডে যোগ হয়েছে: ' + name);
+  closeDrawer();
+}
+
+function openDrawer(){
+  drawer.classList.add('open');
+  backdrop.classList.add('open');
+  renderAssets();
+}
+function closeDrawer(){
+  drawer.classList.remove('open');
+  backdrop.classList.remove('open');
+}
+
+/* ===== TABS ===== */
+function switchTab(lang){
+  if (lang === current) return;
+  buffers[current] = editor.value;
+  current = lang;
+  editor.value = buffers[lang] || '';
+  try { editor.selectionStart = editor.selectionEnd = editor.value.length; } catch(e){}
+  var tabs = document.querySelectorAll('.tab');
+  for (var i = 0; i < tabs.length; i++){
+    tabs[i].classList.toggle('active',
+      tabs[i].getAttribute('data-lang') === lang);
+  }
+  updateHighlight();
+}
+
+/* ===== FULLSCREEN ===== */
+function openFullscreen(){
+  try { fsFrame.srcdoc = buildDoc(); } catch(e){}
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeFullscreen(){
+  overlay.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+/* ===== TOAST ===== */
+var toastTimer;
+function toast(msg){
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ toastEl.classList.remove('show'); }, 2400);
+}
+
+/* ============================================================
+   SHARE SYSTEM
+   ============================================================ */
+
+function b64urlEncode(bytes){
+  var bin = '';
+  var chunk = 8192;
+  for (var i = 0; i < bytes.length; i += chunk){
+    var sub = bytes.subarray(i, Math.min(i + chunk, bytes.length));
+    bin += String.fromCharCode.apply(null, sub);
+  }
+  return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+
+function b64urlDecode(str){
+  str = str.replace(/-/g,'+').replace(/_/g,'/');
+  while (str.length % 4) str += '=';
+  var bin = atob(str);
+  var bytes = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
+async function encodePayload(obj){
+  var json = JSON.stringify(obj);
+  var bytes = new TextEncoder().encode(json);
+
+  if (typeof CompressionStream !== 'undefined'){
+    try {
+      var cs = new CompressionStream('gzip');
+      var w = cs.writable.getWriter();
+      w.write(bytes); w.close();
+      var buf = await new Response(cs.readable).arrayBuffer();
+      return 'z' + b64urlEncode(new Uint8Array(buf));
+    } catch(e){ /* fallthrough */ }
+  }
+  return 'p' + b64urlEncode(bytes);
+}
+
+async function decodePayload(str){
+  if (!str || str.length < 2) return null;
+  var mode = str.charAt(0);
+  var payload = str.substring(1);
+  try {
+    var bytes = b64urlDecode(payload);
+    var json;
+    if (mode === 'z'){
+      if (typeof DecompressionStream === 'undefined') return null;
+      var ds = new DecompressionStream('gzip');
+      var w = ds.writable.getWriter();
+      w.write(bytes); w.close();
+      var buf = await new Response(ds.readable).arrayBuffer();
+      json = new TextDecoder().decode(buf);
+    } else {
+      json = new TextDecoder().decode(bytes);
+    }
+    return JSON.parse(json);
+  } catch(e){
+    console.warn('decode error:', e);
+    return null;
+  }
+}
+
+function buildShareUrl(kind, encoded){
+  var base = location.origin + location.pathname + location.search;
+  return base + '#' + kind + '=' + encoded;
+}
+
+var lastEditUrl = '';
+var lastViewUrl = '';
+
+async function generateShareUrls(){
+  try {
+    var data = { h: buffers.html || '', c: buffers.css || '', j: buffers.js || '' };
+    var encoded = await encodePayload(data);
+    lastEditUrl = buildShareUrl('code', encoded);
+    lastViewUrl = buildShareUrl('view', encoded);
+
+    $('urlPreview').innerHTML =
+      '<b style="color:#7c3aed">🔗 Editor Link:</b><br>' + esc(lastEditUrl) +
+      '<br><br><b style="color:#7c3aed">🌐 Website Link:</b><br>' + esc(lastViewUrl);
+
+    if (lastEditUrl.length > 8000){
+      $('urlPreview').innerHTML += '<br><br>⚠️ <span style="color:#fbbf24">URL বড় (' +
+        lastEditUrl.length + ' অক্ষর)। Download ব্যবহার করো।</span>';
+    }
+  } catch(e){
+    $('urlPreview').textContent = 'লিংক জেনারেট করা যায়নি: ' + e.message;
+  }
+}
+
+function copyToClipboard(text, feedbackEl){
+  function done(){
+    if (feedbackEl){
+      feedbackEl.classList.add('show');
+      setTimeout(function(){ feedbackEl.classList.remove('show'); }, 1500);
+    }
+    toast('📋 কপি হয়েছে!');
+  }
+  if (navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(text).then(done).catch(function(){
+      fallbackCopy(text, done);
+    });
+  } else {
+    fallbackCopy(text, done);
+  }
+}
+
+function fallbackCopy(text, cb){
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed'; ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); cb(); }
+  catch(e){ toast('কপি করা যায়নি'); }
+  document.body.removeChild(ta);
+}
+
+function downloadHTML(){
+  try {
+    var doc = buildDoc();
+    var blob = new Blob([doc], { type:'text/html;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'my-website.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+    toast('💾 my-website.html ডাউনলোড হচ্ছে');
+  } catch(e){
+    toast('ডাউনলোডে সমস্যা: ' + e.message);
+  }
+}
+
+/* ============================================================
+   URL HASH — SHARED CODE LOADER (FIXED)
+   ============================================================ */
+
+function parseHash(){
+  var hash = location.hash;
+  if (!hash || hash.length < 2) return null;
+  hash = hash.substring(1);
+  var idx = hash.indexOf('=');
+  if (idx < 0) return null;
+  var key = hash.substring(0, idx);
+  var val = hash.substring(idx + 1);
+  if (key !== 'code' && key !== 'view') return null;
+  return { key: key, val: val };
+}
+
+async function loadSharedCode(){
+  var parsed = parseHash();
+  if (!parsed) return false;
+
+  console.log('%c🔗 Share link detected:', 'color:#f59e0b', parsed.key);
+
+  /* Loading state */
+  if (parsed.key === 'code'){
+    showLoading();
+  }
+
+  var data = await decodePayload(parsed.val);
+
+  if (!data || typeof data !== 'object'){
+    console.error('❌ Decode failed');
+    if (parsed.key === 'code'){
+      showError('লিংকটি পড়া যায়নি। সম্পূর্ণ কপি হয়েছে কি না দেখো।');
+    }
+    toast('❌ শেয়ার লিংক পড়া যায়নি');
+    return false;
+  }
+
+  console.log('%c✅ Decoded:', 'color:#22c55e', {
+    html: (data.h || '').length,
+    css:  (data.c || '').length,
+    js:   (data.j || '').length
+  });
+
+  /* Set buffers */
+  buffers.html = data.h || '';
+  buffers.css  = data.c || '';
+  buffers.js   = data.j || '';
+
+  /* Set editor to HTML tab */
+  current = 'html';
+  editor.value = buffers.html;
+  try { editor.scrollTop = 0; } catch(e){}
+  updateHighlight();
+
+  var tabs = document.querySelectorAll('.tab');
+  for (var i = 0; i < tabs.length; i++){
+    tabs[i].classList.toggle('active',
+      tabs[i].getAttribute('data-lang') === 'html');
+  }
+
+  if (parsed.key === 'view'){
+    /* Output-only mode */
+    document.body.classList.add('output-only');
+    document.title = '🌐 আমার ওয়েবসাইট';
+    try {
+      fsFrame.srcdoc = '';
+      preview.srcdoc = buildDocFrom(buffers.html, buffers.css, buffers.js);
+    } catch(e){
+      console.error('View mode error:', e);
+    }
+  } else {
+    /* Editor mode — show preview */
+    sharedMode = true;
+    sharedBanner.classList.add('show');
+    updatePreview();
+    setTimeout(function(){
+      if (live) updatePreview();
+    }, 200);
+  }
+
+  return true;
+}
+
+/* ============================================================
+   EVENT LISTENERS
+   ============================================================ */
+
+var tabEls = document.querySelectorAll('.tab');
+for (var ti = 0; ti < tabEls.length; ti++){
+  tabEls[ti].addEventListener('click', function(){
+    switchTab(this.getAttribute('data-lang'));
+  });
+}
+
+editor.addEventListener('input', function(){
+  buffers[current] = editor.value;
+  scheduleHighlight();
+  if (live) schedulePreview();
+});
+
+editor.addEventListener('scroll', syncScroll);
+
+editor.addEventListener('keydown', function(e){
+  if (e.key === 'Tab'){
+    e.preventDefault();
+    var s = editor.selectionStart, en = editor.selectionEnd;
+    editor.value = editor.value.slice(0, s) + '  ' + editor.value.slice(en);
+    try { editor.selectionStart = editor.selectionEnd = s + 2; } catch(err){}
+    buffers[current] = editor.value;
+    updateHighlight();
+    if (live) updatePreview();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter'){
+    e.preventDefault();
+    openFullscreen();
+  }
+});
+
+liveBtn.addEventListener('click', function(){
+  live = !live;
+  liveBtn.classList.toggle('on', live);
+  liveBtn.textContent = live ? '● Live: ON' : '○ Live: OFF';
+  toast(live ? 'লাইভ আউটপুট চালু ✅' : 'লাইভ আউটপুট বন্ধ ⏸');
+  if (live) updatePreview();
+});
+
+$('runBtn').addEventListener('click', openFullscreen);
+$('fsBtn').addEventListener('click', openFullscreen);
+$('reRunBtn').addEventListener('click', function(){
+  try { fsFrame.srcdoc = buildDoc(); } catch(e){}
+  toast('আবার চালানো হলো 🔄');
+});
+$('closeFsBtn').addEventListener('click', closeFullscreen);
+
+document.addEventListener('keydown', function(e){
+  if (e.key === 'Escape'){
+    if (overlay.classList.contains('open')) closeFullscreen();
+    else if (drawer.classList.contains('open')) closeDrawer();
+    else if ($('tagsModal').classList.contains('open')) closeTags();
+    else if ($('shareModal').classList.contains('open')) closeShare();
+  }
+});
+
+/* Asset */
+$('assetBtn').addEventListener('click', openDrawer);
+$('closeDrawer').addEventListener('click', closeDrawer);
+backdrop.addEventListener('click', closeDrawer);
+$('uploadZone').addEventListener('click', function(){ $('fileInput').click(); });
+$('fileInput').addEventListener('change', function(e){
+  var files = e.target.files;
+  if (!files || !files.length) return;
+  var added = [];
+  for (var i = 0; i < files.length; i++) added.push(addAsset(files[i]));
+  renderAssets();
+  updatePreview();
+  toast('✅ ' + added.length + ' টি ফাইল যোগ হয়েছে');
+  e.target.value = '';
+});
+
+/* Share */
+function openShare(){
+  $('shareModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  generateShareUrls();
+}
+function closeShare(){
+  $('shareModal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+$('shareBtn').addEventListener('click', openShare);
+$('closeShareBtn').addEventListener('click', closeShare);
+$('shareModal').addEventListener('click', function(e){
+  if (e.target === this) closeShare();
+});
+
+$('copyEditBtn').addEventListener('click', function(){
+  if (lastEditUrl) copyToClipboard(lastEditUrl, $('editCopied'));
+  else toast('একটু অপেক্ষা করো...');
+});
+$('copyViewBtn').addEventListener('click', function(){
+  if (lastViewUrl) copyToClipboard(lastViewUrl, $('viewCopied'));
+  else toast('একটু অপেক্ষা করো...');
+});
+$('openEditBtn').addEventListener('click', function(){
+  if (lastEditUrl) window.open(lastEditUrl, '_blank');
+  else toast('লিংক তৈরি হচ্ছে...');
+});
+$('openViewBtn').addEventListener('click', function(){
+  if (lastViewUrl) window.open(lastViewUrl, '_blank');
+  else toast('লিংক তৈরি হচ্ছে...');
+});
+$('downloadBtn').addEventListener('click', downloadHTML);
+
+/* "Make Own" button — clear hash, load default */
+$('makeOwnBtn').addEventListener('click', function(){
+  sharedBanner.classList.remove('show');
+  sharedMode = false;
+  location.hash = '';
+  buffers.html = '' +
+'<div class="card">\n' +
+'  <h1>হ্যালো ওয়ার্ল্ড! 👋</h1>\n' +
+'  <p>এখন এটা তোমার নিজের এডিটর।</p>\n' +
+'</div>\n';
+  buffers.css = 'body{margin:0;height:100vh;display:flex;align-items:center;' +
+    'justify-content:center;font-family:"Segoe UI",sans-serif;' +
+    'background:linear-gradient(135deg,#4f46e5,#9333ea)}\n' +
+    '.card{background:#fff;padding:30px 24px;border-radius:16px;' +
+    'text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.25)}\n';
+  buffers.js = 'console.log("নতুন প্রজেক্ট শুরু 🚀");\n';
+  current = 'html';
+  editor.value = buffers.html;
+  updateHighlight();
+  updatePreview();
+  toast('✨ নিজের প্রজেক্ট শুরু করো');
+});
+
+/* "Edit" button in output-only mode */
+$('viewFloatBtn').addEventListener('click', async function(){
+  document.body.classList.remove('output-only');
+  document.title = 'Code Editor Pro — Share & Publish';
+  var data = { h: buffers.html || '', c: buffers.css || '', j: buffers.js || '' };
+  var encoded = await encodePayload(data);
+  location.hash = 'code=' + encoded;
+  sharedMode = true;
+  sharedBanner.classList.add('show');
+  updateHighlight();
+  updatePreview();
+  toast('✏️ এডিট মোড চালু');
+});
+
+window.addEventListener('hashchange', async function(){
+  var parsed = parseHash();
+  if (parsed){
+    await loadSharedCode();
+  }
+});
+
+/* ============================================================
+   HTML TAGS DATA (unchanged)
+   ============================================================ */
+var HTML_TAGS = [
+  { cat:'বেসিক (Basic)', tags:[
+    { n:'html', d:'সম্পূর্ণ HTML পেজের মূল কন্টেইনার', e:'<html lang="bn">\n  ...\n</html>' },
+    { n:'head', d:'পেজের মেটাডেটা (টাইটেল, CSS, ফন্ট)', e:'<head>\n  <title>আমার সাইট</title>\n</head>' },
+    { n:'body', d:'যা কিছু ইউজার দেখবে তা এখানে', e:'<body>\n  <h1>হ্যালো</h1>\n</body>' },
+    { n:'title', d:'ব্রাউজার ট্যাবে যা দেখাবে', e:'<title>আমার ওয়েবসাইট</title>' },
+    { n:'meta', d:'সার্চ ইঞ্জিন/ভিউপোর্টের তথ্য', e:'<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1.0">' },
+    { n:'link', d:'বাইরের CSS বা আইকন যুক্ত করা', e:'<link rel="stylesheet" href="style.css">' },
+    { n:'script', d:'JavaScript কোড লেখা বা লিংক করা', e:'<script>\n  alert("হাই");\n<\/script>' },
+    { n:'style', d:'সরাসরি CSS লেখা', e:'<style>\n  h1 { color: red; }\n</style>' }
+  ]},
+  { cat:'টেক্সট (Text)', tags:[
+    { n:'h1 → h6', d:'হেডিং / শিরোনাম (h1 বড়, h6 ছোট)', e:'<h1>মূল শিরোনাম</h1>\n<h2>সাব শিরোনাম</h2>' },
+    { n:'p', d:'প্যারা / অনুচ্ছেদ', e:'<p>এটি একটি প্যারা।</p>' },
+    { n:'br', d:'লাইন ব্রেক (নতুন লাইন)', e:'আমি লাইন ১<br>আমি লাইন ২' },
+    { n:'hr', d:'অনুভূমিক রেখা (বিভাজক)', e:'<hr>' },
+    { n:'pre', d:'ফরম্যাট সহ লেখা', e:'<pre>\n  line 1\n  line 2\n</pre>' },
+    { n:'blockquote', d:'উদ্ধৃতি', e:'<blockquote>শিক্ষাই আলো</blockquote>' },
+    { n:'span', d:'ছোট ইনলাইন কন্টেইনার', e:'<span style="color:red">লাল</span>' }
+  ]},
+  { cat:'ফরম্যাটিং (Formatting)', tags:[
+    { n:'b', d:'মোটা লেখা', e:'<b>বোল্ড</b>' },
+    { n:'strong', d:'গুরুত্বপূর্ণ মোটা লেখা', e:'<strong>জরুরি!</strong>' },
+    { n:'i', d:'বাঁকা লেখা', e:'<i>ইটালিক</i>' },
+    { n:'em', d:'জোর দেওয়া বাঁকা লেখা', e:'<em>এমফেসিস</em>' },
+    { n:'u', d:'আন্ডারলাইন', e:'<u>নিচে দাগ</u>' },
+    { n:'mark', d:'হাইলাইট করা', e:'<mark>হাইলাইট</mark>' },
+    { n:'small', d:'ছোট লেখা', e:'<small>ছোট</small>' },
+    { n:'del', d:'মুছে ফেলা লেখা', e:'<del>পুরানো দাম ১০০</del>' },
+    { n:'ins', d:'যোগ করা লেখা', e:'<ins>নতুন দাম ৮০</ins>' },
+    { n:'sub', d:'নিচে ছোট লেখা (H₂O)', e:'H<sub>2</sub>O' },
+    { n:'sup', d:'উপরে ছোট লেখা (x²)', e:'x<sup>2</sup>' }
+  ]},
+  { cat:'লিংক ও মিডিয়া', tags:[
+    { n:'a', d:'হাইপারলিংক', e:'<a href="https://google.com">গুগলে যাও</a>' },
+    { n:'img', d:'ছবি দেখানো', e:'<img src="photo.jpg" alt="আমার ছবি">' },
+    { n:'video', d:'ভিডিও দেখানো', e:'<video src="video.mp4" controls></video>' },
+    { n:'audio', d:'অডিও বাজানো', e:'<audio src="song.mp3" controls></audio>' },
+    { n:'iframe', d:'অন্য পেজ/ভিডিও এমবেড', e:'<iframe src="https://example.com"></iframe>' }
+  ]},
+  { cat:'লিস্ট (Lists)', tags:[
+    { n:'ul', d:'বুলেট লিস্ট (ক্রমহীন)', e:'<ul>\n  <li>আম</li>\n  <li>জাম</li>\n</ul>' },
+    { n:'ol', d:'নাম্বার লিস্ট (ক্রমযুক্ত)', e:'<ol>\n  <li>প্রথম</li>\n  <li>দ্বিতীয়</li>\n</ol>' },
+    { n:'li', d:'লিস্টের আইটেম', e:'<li>আইটেম</li>' },
+    { n:'dl', d:'ডেসক্রিপশন লিস্ট', e:'<dl>\n  <dt>HTML</dt>\n  <dd>মার্কআপ ল্যাঙ্গুয়েজ</dd>\n</dl>' }
+  ]},
+  { cat:'টেবিল (Tables)', tags:[
+    { n:'table', d:'টেবিল বানানো', e:'<table border="1">\n  <tr><th>নাম</th><th>বয়স</th></tr>\n  <tr><td>রফিক</td><td>২০</td></tr>\n</table>' },
+    { n:'tr', d:'টেবিলের সারি (row)', e:'<tr><td>ডেটা</td></tr>' },
+    { n:'th', d:'হেডিং সেল (বোল্ড)', e:'<th>শিরোনাম</th>' },
+    { n:'td', d:'সাধারণ সেল', e:'<td>ডেটা</td>' }
+  ]},
+  { cat:'ফর্ম (Forms)', tags:[
+    { n:'form', d:'ফর্ম কন্টেইনার', e:'<form action="/submit">\n  ...\n</form>' },
+    { n:'input', d:'ইনপুট ফিল্ড', e:'<input type="text" placeholder="নাম">\n<input type="password">\n<input type="checkbox">' },
+    { n:'button', d:'ক্লিকেবল বাটন', e:'<button type="submit">পাঠাও</button>' },
+    { n:'textarea', d:'বড় টেক্সট এরিয়া', e:'<textarea rows="4">এখানে লেখো...</textarea>' },
+    { n:'select', d:'ড্রপডাউন মেনু', e:'<select>\n  <option>ঢাকা</option>\n  <option>খুলনা</option>\n</select>' },
+    { n:'option', d:'ড্রপডাউনের আইটেম', e:'<option value="1">এক</option>' },
+    { n:'label', d:'ইনপুটের লেবেল', e:'<label for="nm">নাম:</label>\n<input id="nm">' }
+  ]},
+  { cat:'সেমান্টিক (Semantic)', tags:[
+    { n:'header', d:'পেজ/সেকশনের হেডার', e:'<header>\n  <h1>লোগো</h1>\n</header>' },
+    { n:'nav', d:'নেভিগেশন মেনু', e:'<nav>\n  <a href="#">হোম</a>\n</nav>' },
+    { n:'main', d:'মূল কন্টেন্ট', e:'<main>\n  <p>মূল লেখা</p>\n</main>' },
+    { n:'section', d:'বিভাগ / সেকশন', e:'<section>\n  <h2>আমাদের সম্পর্কে</h2>\n</section>' },
+    { n:'article', d:'স্বাধীন কন্টেন্ট', e:'<article>\n  <h2>পোস্ট শিরোনাম</h2>\n</article>' },
+    { n:'aside', d:'সাইড কন্টেন্ট', e:'<aside>সাইডবার</aside>' },
+    { n:'footer', d:'পেজের নিচের অংশ', e:'<footer>© 2025 আমার সাইট</footer>' },
+    { n:'div', d:'সাধারণ ব্লক কন্টেইনার', e:'<div class="box">\n  কন্টেন্ট\n</div>' }
+  ]},
+  { cat:'অন্যান্য (Others)', tags:[
+    { n:'canvas', d:'গ্রাফিক্স আঁকার জন্য', e:'<canvas id="c" width="200" height="100"></canvas>' },
+    { n:'svg', d:'ভেক্টর গ্রাফিক্স', e:'<svg width="100" height="100">\n  <circle cx="50" cy="50" r="40" fill="red"/>\n</svg>' },
+    { n:'details', d:'ক্লিকে খোলা/বন্ধ প্যানেল', e:'<details>\n  <summary>আরও দেখো</summary>\n  লুকানো লেখা\n</details>' },
+    { n:'progress', d:'প্রোগ্রেস বার', e:'<progress value="70" max="100"></progress>' },
+    { n:'dialog', d:'ডায়ালগ / পপআপ', e:'<dialog open>পপআপ কন্টেন্ট</dialog>' }
+  ]}
+];
+
+function renderTags(filter){
+  filter = (filter || '').trim().toLowerCase();
+  var body = $('tagsBody');
+  body.innerHTML = '';
+  var totalShown = 0;
+
+  HTML_TAGS.forEach(function(cat){
+    var matched = cat.tags.filter(function(t){
+      if (!filter) return true;
+      return t.n.toLowerCase().indexOf(filter) >= 0 ||
+             t.d.toLowerCase().indexOf(filter) >= 0;
+    });
+    if (matched.length === 0) return;
+    totalShown += matched.length;
+
+    var catDiv = document.createElement('div');
+    catDiv.className = 'cat';
+    var title = document.createElement('div');
+    title.className = 'cat-title';
+    title.textContent = cat.cat;
+    catDiv.appendChild(title);
+
+    var grid = document.createElement('div');
+    grid.className = 'tag-grid';
+
+    matched.forEach(function(t){
+      var card = document.createElement('div');
+      card.className = 'tag-card';
+
+      var head = document.createElement('div');
+      head.className = 'tag-head';
+      var nm = document.createElement('div');
+      nm.className = 'tag-name';
+      nm.textContent = '<' + t.n + '>';
+      head.appendChild(nm);
+
+      var desc = document.createElement('div');
+      desc.className = 'tag-desc';
+      desc.textContent = t.d;
+
+      var ex = document.createElement('pre');
+      ex.className = 'tag-ex';
+      ex.textContent = t.e;
+
+      var ins = document.createElement('button');
+      ins.className = 'tag-insert';
+      ins.textContent = '➕ কোডে যোগ করো';
+      (function(tagText, tagName){
+        ins.addEventListener('click', function(){
+          insertAtCursor('\n' + tagText + '\n');
+          toast('✅ <' + tagName + '> যোগ হয়েছে');
+          closeTags();
+        });
+      })(t.e, t.n);
+
+      card.appendChild(head);
+      card.appendChild(desc);
+      card.appendChild(ex);
+      card.appendChild(ins);
+      grid.appendChild(card);
+    });
+
+    catDiv.appendChild(grid);
+    body.appendChild(catDiv);
+  });
+
+  if (totalShown === 0){
+    body.innerHTML = '<div style="text-align:center;padding:40px 10px;color:#8b949e">' +
+      '😕 কিছু পাওয়া যায়নি<br><small>অন্য কিছু খোঁজো...</small></div>';
+  }
+}
+
+function openTags(){
+  $('tagsModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  setTimeout(function(){ $('tagSearch').focus(); }, 120);
+}
+function closeTags(){
+  $('tagsModal').classList.remove('open');
+  document.body.style.overflow = '';
+  $('tagSearch').value = '';
+}
+
+$('learnBtn').addEventListener('click', openTags);
+$('closeTagsBtn').addEventListener('click', closeTags);
+$('tagsModal').addEventListener('click', function(e){
+  if (e.target === this) closeTags();
+});
+$('tagSearch').addEventListener('input', function(){
+  renderTags(this.value);
+});
+
+/* ============================================================
+   INIT — MAIN ENTRY POINT
+   ============================================================ */
+
+async function init(){
+  renderAssets();
+  renderTags('');
+
+  var hasShare = !!parseHash();
+
+  if (hasShare){
+    /* Shared link — DON'T load default code */
+    if (parseHash().key === 'code'){
+      showLoading();
+    }
+    await loadSharedCode();
+  } else {
+    /* No share link — load default */
+    editor.value = buffers.html;
+    updateHighlight();
+    updatePreview();
+  }
+
+  console.log('%c✅ Code Editor Ready', 'color:#22c55e;font-weight:bold');
+}
+
+/* Run when DOM is ready */
+if (document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+
+})();
+</script>
+</body>
+</html>
