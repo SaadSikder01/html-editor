@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="bn">
 <head>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-2RJYWQ957C"></script>
 <script>
@@ -447,13 +448,51 @@
     .btn{padding:9px 11px;font-size:12px}
     .btn.share-icon{width:40px;height:40px}
   }
+
+
+
+
+/* ============================================================
+   PUBLISH MODAL STYLES
+   ============================================================ */
+.brand{background:none;border:none;padding:0;cursor:pointer;color:var(--text);font:inherit;display:flex;align-items:center;gap:6px;transition:opacity .15s;}
+.brand:hover{opacity:.85}
+.brand.logged-in .txt::after{content:' •';color:var(--green)}
+
+.pub-modal{position:fixed;inset:0;z-index:900;background:rgba(5,8,15,.85);backdrop-filter:blur(10px);display:none;align-items:center;justify-content:center;padding:20px;}
+.pub-modal.open{display:flex}
+.pub-panel{width:min(420px,100%);background:linear-gradient(180deg,#1a2030,#141922);border:1px solid rgba(124,58,237,.35);border-radius:20px;padding:24px;position:relative;max-height:92vh;overflow-y:auto;color:#e6edf3;box-shadow:0 20px 50px rgba(0,0,0,.6);}
+.pub-panel h2{font-size:19px;font-weight:900;margin-bottom:6px;color:#fff}
+.pub-panel .sub{font-size:12.5px;color:#94a3b8;margin-bottom:16px;line-height:1.5}
+.pub-panel .close{position:absolute;top:14px;right:14px;width:32px;height:32px;border-radius:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#e6edf3;cursor:pointer;display:grid;place-items:center;font-size:14px;}
+.pub-input{width:100%;padding:12px 14px;margin-bottom:10px;background:#0f141d;border:1.5px solid rgba(124,58,237,.2);color:#e6edf3;border-radius:11px;font-size:14px;outline:none;font-family:inherit;box-sizing:border-box;}
+.pub-btn{width:100%;padding:13px;border-radius:11px;border:none;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;box-shadow:0 4px 14px rgba(124,58,237,.4);transition:.15s;}
+.pub-btn:hover:not(:disabled){transform:translateY(-1px)}
+.pub-btn:disabled{opacity:.5;cursor:not-allowed}
+.pub-btn.success{background:linear-gradient(135deg,#10b981,#059669);}
+.pub-error{background:rgba(127,29,29,.4);border:1px solid rgba(239,68,68,.3);color:#fca5a5;padding:10px 12px;border-radius:10px;font-size:12px;margin-bottom:10px;display:none}
+.pub-error.show{display:block}
+.pub-info{background:rgba(30,58,138,.3);border:1px solid rgba(59,130,246,.3);color:#bfdbfe;padding:11px 13px;border-radius:10px;font-size:12px;line-height:1.5;margin-bottom:14px}
+.pub-user-badge{display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,#1c2434,#181e2c);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:12px;margin-bottom:16px;}
+.pub-user-badge .dot{width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 8px #22c55e;flex-shrink:0}
+.pub-user-badge .info{flex:1;min-width:0}
+.pub-user-badge .name{font-size:13px;font-weight:800;color:#f1f5f9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pub-user-badge .url{font-size:11px;color:#a78bfa;font-family:ui-monospace,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pub-user-badge .logout{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#94a3b8;padding:6px 10px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;}
+.pub-url-box{background:#080c13;border:1px solid rgba(124,58,237,.25);border-radius:11px;padding:12px 14px;font-family:ui-monospace,monospace;font-size:12.5px;color:#a78bfa;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:8px;overflow:hidden;}
+.pub-url-box span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pub-url-box button{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#e6edf3;padding:6px 10px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;}
+
+  
 </style>
 </head>
 <body class="mobile-view-code">
 
 <div class="app">
   <header>
-    <div class="brand"><i>⚡</i><span class="txt">কোড এডিটর</span></div>
+    <button class="brand" id="publishBtn" title="Publish to your subdomain">
+  <i>⚡</i><span class="txt">Publish</span>
+</button>
     <button class="btn learn hdr-hide-mobile" id="learnBtn">📚</button>
     <!-- SHARE ICON -->
     <button class="btn share-icon" id="shareBtn" title="শেয়ার" aria-label="Share">
@@ -466,6 +505,76 @@
     <button class="btn primary" id="runBtn">▶ Run</button>
   </header>
 
+
+
+
+
+
+<!-- PUBLISH MODAL -->
+<div class="pub-modal" id="pubModal">
+  <div class="pub-panel">
+    <button class="close" id="pubClose">✕</button>
+
+    <!-- STATE 1: Auth (Login) -->
+    <div id="pubAuthView">
+      <h2>🔐 Login with MyClassroom</h2>
+      <p class="sub">Publish করতে MyClassroom-এর account লাগবে। একই account দিয়ে <b>mycls.top</b>-এও ব্যবহার করতে পারবে।</p>
+
+      <button class="pub-btn" id="pubSsoBtn" style="background:linear-gradient(135deg,#25D366,#128C7E);box-shadow:0 4px 14px rgba(37,211,102,.4);margin-bottom:12px">
+        🔐 Login with MyClassroom
+      </button>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <div style="flex:1;height:1px;background:rgba(255,255,255,.1)"></div>
+        <span style="font-size:11px;color:#64748b">অথবা</span>
+        <div style="flex:1;height:1px;background:rgba(255,255,255,.1)"></div>
+      </div>
+      <input type="email" class="pub-input" id="pubEmail" placeholder="ইমেইল (MyClassroom)" autocomplete="email">
+      <input type="password" class="pub-input" id="pubPassword" placeholder="পাসওয়ার্ড" autocomplete="current-password">
+      <div class="pub-error" id="pubAuthErr"></div>
+      <button class="pub-btn" id="pubLoginBtn">লগইন করো</button>
+    </div>
+
+    <!-- STATE 2: Username Setup -->
+    <div id="pubUsernameView" style="display:none">
+      <h2>🎯 তোমার subdomain</h2>
+      <p class="sub">তুমি লগইন করা আছো। শুধু একটা username বেছে নাও — এটাই হবে তোমার সাইটের ঠিকানা।</p>
+      <input type="text" class="pub-input" id="pubNewUsername" placeholder="username (a-z, 0-9, -)" autocapitalize="off" spellcheck="false">
+      <p style="font-size:12px;color:#a78bfa;margin:-4px 0 10px 4px">→ <strong><span id="pubUsernamePreview">username</span>.mycls.top</strong></p>
+      <div class="pub-error" id="pubSetupErr"></div>
+      <button class="pub-btn" id="pubSetupBtn">এই নাম নাও</button>
+    </div>
+
+    <!-- STATE 3: Publish -->
+    <div id="pubPublishView" style="display:none">
+      <h2>🚀 Publish করো</h2>
+      <p class="sub">তোমার কোড live যাবে — সবাই দেখতে পাবে।</p>
+      <div class="pub-user-badge">
+        <span class="dot"></span>
+        <div class="info">
+          <div class="name" id="pubUserName">—</div>
+          <div class="url" id="pubUserUrl">—</div>
+        </div>
+        <button class="logout" id="pubLogoutBtn">লগআউট</button>
+      </div>
+      <div class="pub-info">HTML, CSS, JS + সব ছবি/ভিডিও embed হবে। Offline-এও কাজ করবে।</div>
+      <div class="pub-error" id="pubPubErr"></div>
+      <button class="pub-btn" id="pubPublishNowBtn">🚀 এখন Publish করো</button>
+
+      <div id="pubSuccessArea" style="display:none;margin-top:14px">
+        <div class="pub-info" style="background:rgba(6,95,70,.4);border-color:rgba(34,197,94,.3);color:#bbf7d0">✅ <b>Publish সফল!</b></div>
+        <div class="pub-url-box">
+          <span id="pubSuccessUrl">—</span>
+          <button id="pubCopyBtn">📋 কপি</button>
+        </div>
+        <button class="pub-btn success" id="pubVisitBtn">🌐 সাইট দেখো</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+  
   <div class="shared-banner" id="sharedBanner">
     <span>🔗</span>
     <span class="sp">শেয়ার করা কোড লোড হয়েছে!</span>
@@ -659,6 +768,7 @@
 (function(){
 'use strict';
 
+  
 /* ============================================================
    LZ-String
    ============================================================ */
@@ -2128,6 +2238,194 @@ $('tagSearch').addEventListener('input', function(){
   renderTags(this.value);
 });
 
+
+
+
+
+/* ============================================================
+   PUBLISH & SSO LOGIC (Corrected Placement & Redirect URI)
+   ============================================================ */
+const SB_URL = 'https://bytnxoltodeckrmwobgc.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ5dG54b2x0b2RlY2tybXdvYmdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNjgwNDYsImV4cCI6MjA5NDg0NDA0Nn0.14nw0jHluWSlQTbrguKpHsXwmDjnirUktpJ_RCE9iHs';
+const sb = window.supabase.createClient(SB_URL, SB_KEY);
+
+let pubUser = null;
+let pubSite = null;
+
+function pubShowView(view) {
+  $('pubAuthView').style.display     = view === 'auth'     ? 'block' : 'none';
+  $('pubUsernameView').style.display = view === 'username' ? 'block' : 'none';
+  $('pubPublishView').style.display  = view === 'publish'  ? 'block' : 'none';
+  $('pubSuccessArea').style.display  = 'none';
+  $('pubAuthErr').classList.remove('show');
+  $('pubSetupErr').classList.remove('show');
+  $('pubPubErr').classList.remove('show');
+}
+
+async function pubOpen() {
+  $('pubModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  await pubRefresh();
+}
+
+function pubClose() {
+  $('pubModal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+async function pubRefresh() {
+  const { data: { session } } = await sb.auth.getSession();
+  pubUser = session?.user || null;
+
+  if (!pubUser) { pubShowView('auth'); return; }
+
+  const { data } = await sb.from('mycls_sites').select('*').eq('user_id', pubUser.id).maybeSingle();
+  pubSite = data;
+
+  if (!pubSite) { pubShowView('username'); return; }
+
+  const url = `https://${pubSite.username}.mycls.top`;
+  $('pubUserName').textContent = pubUser.user_metadata?.name || pubSite.username;
+  $('pubUserUrl').textContent = url;
+  pubShowView('publish');
+  $('publishBtn').classList.add('logged-in');
+}
+
+// ---- SSO Logic ----
+const SSO_AUTHORIZE_URL = 'https://mycls.top/myclassroom.html'; 
+const SSO_EXCHANGE_URL = `${SB_URL}/functions/v1/sso-exchange`;
+// রিডাইরেক্ট ইউআরএল থেকে /sso/callback বাদ দেওয়া হলো যাতে 404 না আসে
+const getRedirectUri = () => window.location.origin + window.location.pathname;
+
+// 1. SSO Button
+$('pubSsoBtn').addEventListener('click', () => {
+  const state = crypto.randomUUID();
+  sessionStorage.setItem('__sso_state', state);
+  const redirect_uri = getRedirectUri();
+  window.location.href = `${SSO_AUTHORIZE_URL}?sso_authorize=1&redirect_uri=${encodeURIComponent(redirect_uri)}&state=${state}`;
+});
+
+// 2. SSO Callback Handler
+(async function handleSsoCallback() {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  const state = params.get('state');
+  if (!code || !state) return;
+
+  window.history.replaceState({}, '', window.location.pathname); 
+  
+  const savedState = sessionStorage.getItem('__sso_state');
+  sessionStorage.removeItem('__sso_state');
+  
+  if (!savedState || savedState !== state) return alert('❌ SSO state mismatch');
+
+  toast('🔐 Logging you in...');
+  try {
+    const res = await fetch(SSO_EXCHANGE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, state, redirect_uri: getRedirectUri() }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) return alert('❌ SSO failed: ' + (data.error || 'unknown'));
+
+    const { error } = await sb.auth.verifyOtp({ type: 'magiclink', token_hash: data.token_hash });
+    if (error) return alert('❌ Login failed: ' + error.message);
+
+    toast('✅ Logged in!');
+    await pubRefresh();
+    pubOpen();
+  } catch (e) { alert('❌ Network error: ' + e.message); }
+})();
+
+// 3. Manual Email Login
+$('pubLoginBtn').addEventListener('click', async () => {
+  const email = $('pubEmail').value.trim();
+  const pw = $('pubPassword').value;
+  if (!email || pw.length < 6) return $('pubAuthErr').textContent = 'ইমেইল ও পাসওয়ার্ড (৬+) দাও', $('pubAuthErr').classList.add('show');
+  
+  $('pubLoginBtn').disabled = true; $('pubLoginBtn').textContent = 'লগইন হচ্ছে...';
+  const { error } = await sb.auth.signInWithPassword({ email, password: pw });
+  $('pubLoginBtn').disabled = false; $('pubLoginBtn').textContent = 'লগইন করো';
+  
+  if (error) return $('pubAuthErr').textContent = error.message, $('pubAuthErr').classList.add('show');
+  toast('✅ লগইন সফল'); await pubRefresh();
+});
+
+// 4. Username Setup
+$('pubNewUsername').addEventListener('input', function() {
+  this.value = this.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+  $('pubUsernamePreview').textContent = this.value || 'username';
+});
+
+$('pubSetupBtn').addEventListener('click', async () => {
+  const username = $('pubNewUsername').value.trim();
+  if (!/^[a-z0-9][a-z0-9-]{2,29}$/.test(username)) {
+    $('pubSetupErr').textContent = 'ভুল নাম! ৩-৩০ অক্ষর, শুধু a-z, 0-9, -'; $('pubSetupErr').classList.add('show'); return;
+  }
+  $('pubSetupBtn').disabled = true; $('pubSetupBtn').textContent = 'সংরক্ষণ হচ্ছে...';
+  const { error } = await sb.from('mycls_sites').insert({ user_id: pubUser.id, username });
+  $('pubSetupBtn').disabled = false; $('pubSetupBtn').textContent = 'এই নাম নাও';
+  
+  if (error) {
+    $('pubSetupErr').textContent = error.code === '23505' ? 'এই নাম নেওয়া হয়েছে!' : 'এই নাম reserved।';
+    $('pubSetupErr').classList.add('show'); return;
+  }
+  toast(`🎉 ${username}.mycls.top এখন তোমার!`); await pubRefresh();
+});
+
+// 5. Publish Logic
+$('pubPublishNowBtn').addEventListener('click', async () => {
+  if (!pubUser || !pubSite) return;
+  $('pubPubErr').classList.remove('show');
+  
+  buffers[current] = editor.value; 
+  const finalHTML = rewritePathsForDownload(buffers.html || '');
+  const finalCSS  = rewritePathsForDownload(buffers.css  || '');
+  const finalJS   = rewritePathsForDownload(buffers.js   || '');
+
+  if ((finalHTML.length + finalCSS.length + finalJS.length) > 4_500_000) {
+    $('pubPubErr').textContent = '⚠️ সাইট খুব বড়। ছবি/ভিডিও কমাও।'; $('pubPubErr').classList.add('show'); return;
+  }
+
+  $('pubPublishNowBtn').disabled = true; $('pubPublishNowBtn').textContent = '🚀 Publish হচ্ছে...';
+  const { error } = await sb.from('mycls_sites').update({ html: finalHTML, css: finalCSS, js: finalJS, published: true }).eq('id', pubSite.id);
+  $('pubPublishNowBtn').disabled = false; $('pubPublishNowBtn').textContent = '🚀 আবার Publish করো';
+
+  if (error) { $('pubPubErr').textContent = error.message; $('pubPubErr').classList.add('show'); return; }
+
+  const url = `https://${pubSite.username}.mycls.top`;
+  $('pubSuccessUrl').textContent = url; $('pubSuccessArea').style.display = 'block';
+  toast('✅ Publish সফল!');
+});
+
+// 6. Copy / Visit / Logout
+$('pubCopyBtn').addEventListener('click', () => {
+  navigator.clipboard.writeText($('pubSuccessUrl').textContent).then(() => toast('📋 কপি হয়েছে'));
+});
+$('pubVisitBtn').addEventListener('click', () => window.open($('pubSuccessUrl').textContent, '_blank'));
+$('pubLogoutBtn').addEventListener('click', async () => {
+  if (!confirm('লগআউট করবে?')) return;
+  await sb.auth.signOut();
+  pubUser = null; pubSite = null; $('publishBtn').classList.remove('logged-in');
+  await pubRefresh(); toast('লগআউট হয়েছে');
+});
+
+// 7. Bind UI
+$('publishBtn').addEventListener('click', pubOpen);
+$('pubClose').addEventListener('click', pubClose);
+$('pubModal').addEventListener('click', e => { if (e.target === $('pubModal')) pubClose(); });
+sb.auth.onAuthStateChange(() => pubRefresh());
+sb.auth.getSession().then(({ data: { session } }) => { if (session?.user) $('publishBtn').classList.add('logged-in'); });
+
+/* ============================================================
+   INIT
+   ============================================================ */
+
+
+
+
+  
 /* ============================================================
    INIT
    ============================================================ */
