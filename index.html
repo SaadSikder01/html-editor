@@ -2323,11 +2323,15 @@ $('pubSsoBtn').addEventListener('click', () => {
   try {
     const res = await fetch(SSO_EXCHANGE_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'apikey': SB_KEY,
+        'Authorization': 'Bearer ' + SB_KEY
+      },
       body: JSON.stringify({ code, state, redirect_uri: getRedirectUri() }),
     });
     const data = await res.json();
-    if (!res.ok || data.error) return alert('❌ SSO failed: ' + (data.error || 'unknown'));
+    if (!res.ok || data.error) return alert('❌ SSO failed: ' + (data.error || data.message || 'unknown'));
 
     const { error } = await sb.auth.verifyOtp({ type: 'magiclink', token_hash: data.token_hash });
     if (error) return alert('❌ Login failed: ' + error.message);
