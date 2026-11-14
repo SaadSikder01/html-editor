@@ -1206,7 +1206,7 @@ var DEFAULT_CODE = {
 '  <body>\n' +
 '      <h1 class="title">Hello World!</h1>\n' +
 '      <p id="currentTime"></p>\n' +
-'      <script src="script.js"><\\/script>\n' +
+'      <script src="script.js"><\/script>\n' +
 '  </body>\n' +
 '</html>\n',
   css:
@@ -1376,7 +1376,9 @@ function rewritePathsForDownload(text){
    BUILD DOC
    ============================================================ */
 function buildDocFrom(html, css, js){
+  var cs = '<' + '/script>';
   var isFullDoc = /<html/i.test(html);
+  
   if (isFullDoc) {
      let out = html;
      // Inject CSS
@@ -1392,17 +1394,16 @@ function buildDocFrom(html, css, js){
      // Inject JS
      if (js) {
          if (out.includes('script.js')) {
-             out = out.replace(/<script[^>]*script\.js[^>]*><\/script>/, '<script>\n' + js + '\n</script>');
+             out = out.replace(/<script[^>]*script\.js[^>]*><\/script>/, '<script>\n' + js + '\n' + cs);
          } else if (out.includes('</body>')) {
-             out = out.replace('</body>', '<script>\n' + js + '\n</script>\n</body>');
+             out = out.replace('</body>', '<script>\n' + js + '\n' + cs + '\n</body>');
          } else {
-             out = out + '\n<script>\n' + js + '\n</script>';
+             out = out + '\n<script>\n' + js + '\n' + cs;
          }
      }
      return out;
   }
   
-  var cs = '<' + '/script>';
   return '<!DOCTYPE html>\n<html lang="bn">\n<head>\n' +
     '<meta charset="UTF-8">\n' +
     '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n' +
