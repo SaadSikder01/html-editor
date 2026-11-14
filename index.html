@@ -1197,41 +1197,34 @@ function hlJS(code){
    ============================================================ */
 var DEFAULT_CODE = {
   html:
-'<div class="container">\n' +
-'  <h1 class="title">Hello World!</h1>\n' +
-'  <p id="currentTime"></p>\n' +
-'</div>\n',
+'<!DOCTYPE html>\n' +
+'<html>\n' +
+'  <head>\n' +
+'    <title>Hello, World!</title>\n' +
+'    <link rel="stylesheet" href="styles.css" />\n' +
+'  </head>\n' +
+'  <body>\n' +
+'      <h1 class="title">Hello World!</h1>\n' +
+'      <p id="currentTime"></p>\n' +
+'      <script src="script.js"><\\/script>\n' +
+'  </body>\n' +
+'</html>\n',
   css:
-'body{\n' +
-'  padding: 25px;\n' +
+'body {\n' +
 '  font-family: "Segoe UI", sans-serif;\n' +
+'  text-align: center;\n' +
+'  padding: 40px;\n' +
 '  background: #f9fafb;\n' +
 '}\n' +
-'.container{\n' +
-'  max-width: 480px;\n' +
-'  margin: 40px auto;\n' +
-'  text-align: center;\n' +
-'  background: #fff;\n' +
-'  padding: 30px 24px;\n' +
-'  border-radius: 16px;\n' +
-'  box-shadow: 0 6px 30px rgba(0,0,0,0.08);\n' +
-'}\n' +
-'.title{\n' +
+'.title {\n' +
 '  color: #5C6AC4;\n' +
-'  margin-bottom: 12px;\n' +
-'}\n' +
-'#currentTime{\n' +
-'  color: #6b7280;\n' +
-'  font-size: 14px;\n' +
 '}\n',
   js:
 'function showTime(){\n' +
 '  document.getElementById("currentTime").innerHTML = new Date().toUTCString();\n' +
 '}\n' +
 'showTime();\n' +
-'setInterval(function(){\n' +
-'  showTime();\n' +
-'}, 1000);\n'
+'setInterval(showTime, 1000);\n'
 };
 
 var buffers = {
@@ -1246,6 +1239,7 @@ var assets = {};   /* name -> { kind, type, size, dataUrl, previewUrl } */
 var sharedMode = false;
 var currentBlobUrl = null;
 var currentFsBlobUrl = null;
+var isDirty = false;
 
 editor.value = buffers.html;
 
@@ -1382,6 +1376,32 @@ function rewritePathsForDownload(text){
    BUILD DOC
    ============================================================ */
 function buildDocFrom(html, css, js){
+  var isFullDoc = /<html/i.test(html);
+  if (isFullDoc) {
+     let out = html;
+     // Inject CSS
+     if (css) {
+         if (out.includes('styles.css')) {
+             out = out.replace(/<link[^>]*styles\.css[^>]*>/, '<style>\n' + css + '\n</style>');
+         } else if (out.includes('</head>')) {
+             out = out.replace('</head>', '<style>\n' + css + '\n</style>\n</head>');
+         } else {
+             out = '<style>\n' + css + '\n</style>\n' + out;
+         }
+     }
+     // Inject JS
+     if (js) {
+         if (out.includes('script.js')) {
+             out = out.replace(/<script[^>]*script\.js[^>]*><\/script>/, '<script>\n' + js + '\n</script>');
+         } else if (out.includes('</body>')) {
+             out = out.replace('</body>', '<script>\n' + js + '\n</script>\n</body>');
+         } else {
+             out = out + '\n<script>\n' + js + '\n</script>';
+         }
+     }
+     return out;
+  }
+  
   var cs = '<' + '/script>';
   return '<!DOCTYPE html>\n<html lang="bn">\n<head>\n' +
     '<meta charset="UTF-8">\n' +
@@ -1481,6 +1501,7 @@ function insertAtCursor(text){
   var pos = s + text.length;
   try { editor.selectionStart = editor.selectionEnd = pos; } catch(e){}
   buffers[current] = editor.value;
+  isDirty = true; // <-- এই লাইনটি নতুন যোগ হলো
   updateHighlight();
   if (live) updatePreview();
 }
@@ -1913,6 +1934,7 @@ function loadSharedCode(){
    ============================================================ */
 editor.addEventListener('input', function(){
   buffers[current] = editor.value;
+  isDirty = true; // <-- এই লাইনটি নতুন যোগ হলো
   scheduleHighlight();
   if (live) schedulePreview();
 });
@@ -2379,6 +2401,7 @@ $('pubSetupBtn').addEventListener('click', async () => {
 });
 
 // 5. Publish Logic
+// 5. Publish Logic
 $('pubPublishNowBtn').addEventListener('click', async () => {
   if (!pubUser || !pubSite) return;
   $('pubPubErr').classList.remove('show');
@@ -2389,7 +2412,7 @@ $('pubPublishNowBtn').addEventListener('click', async () => {
   const finalJS   = rewritePathsForDownload(buffers.js   || '');
 
   if ((finalHTML.length + finalCSS.length + finalJS.length) > 4_500_000) {
-    $('pubPubErr').textContent = '⚠️ সাইট খুব বড়। ছবি/ভিডিও কমাও।'; $('pubPubErr').classList.add('show'); return;
+    $('pubPubErr').textContent = '⚠️ সাইট খুব বড়। ছবি/ভিডিও কমাও।'; $('pubPubErr').classList.add('show'); return;
   }
 
   $('pubPublishNowBtn').disabled = true; $('pubPublishNowBtn').textContent = '🚀 Publish হচ্ছে...';
@@ -2399,7 +2422,11 @@ $('pubPublishNowBtn').addEventListener('click', async () => {
   if (error) { $('pubPubErr').textContent = error.message; $('pubPubErr').classList.add('show'); return; }
 
   const url = `https://${pubSite.username}.mycls.top`;
-  $('pubSuccessUrl').textContent = url; $('pubSuccessArea').style.display = 'block';
+  $('pubSuccessUrl').textContent = url; 
+  $('pubSuccessArea').style.display = 'block';
+  
+  isDirty = false; // 👈 এই লাইনটি নতুন যোগ হলো (পাবলিশ সফল হলে ওয়ার্নিং মুছে যাবে)
+  
   toast('✅ Publish সফল!');
 });
 
@@ -2433,16 +2460,39 @@ sb.auth.getSession().then(({ data: { session } }) => { if (session?.user) $('pub
 /* ============================================================
    INIT
    ============================================================ */
-function init(){
+/* ============================================================
+   INIT
+   ============================================================ */
+async function init(){
   renderAssets();
   renderTags('');
-  updateHighlight();
 
   var parsed = parseHash();
   if (parsed){
     loadSharedCode();
   } else {
-    editor.value = buffers.html;
+    // ১. চেক করি ইউজার লগইন করা আছে কি না
+    const { data: { session } } = await sb.auth.getSession();
+    
+    if (session) {
+      // ২. লগইন থাকলে ডাটাবেস থেকে তার আগের পাবলিশ করা কোডটি নিয়ে আসি
+      const { data } = await sb.from('mycls_sites').select('html, css, js').eq('user_id', session.user.id).maybeSingle();
+      
+      if (data && data.html) {
+        buffers.html = data.html;
+        buffers.css = data.css || DEFAULT_CODE.css;
+        buffers.js = data.js || DEFAULT_CODE.js;
+        editor.value = buffers.html;
+      } else {
+        // ডাটাবেসে কিছু না থাকলে ডিফল্ট কোড
+        editor.value = DEFAULT_CODE.html;
+      }
+    } else {
+      // ৩. লগইন না থাকলে ডিফল্ট কোড
+      editor.value = DEFAULT_CODE.html;
+    }
+
+    isDirty = false; // নতুন কোড লোড হওয়ায় ওয়ার্নিং বন্ধ থাকবে
     updateHighlight();
     updatePreview();
   }
